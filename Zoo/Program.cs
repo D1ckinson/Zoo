@@ -1,14 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-//Пользователь запускает приложение и перед ним находится меню,
-//в котором он может выбрать, к какому вольеру подойти.
-//При приближении к вольеру, пользователю выводится информация о том,
-//что это за вольер, сколько животных там обитает, их пол и какой звук издает животное.
-//Вольеров в зоопарке может быть много, в решении нужно создать минимум 4 вольера.
 
 namespace Zoo
 {
@@ -16,74 +8,197 @@ namespace Zoo
     {
         static void Main()
         {
+            int animalsQuantity = 5;
 
+            List<Animal> allAnimals = new List<Animal>()
+            {
+                new Tiger(Gender.Male),
+                new Hedgehog(Gender.Male),
+                new Giraffe (Gender.Male),
+                new Titmouse(Gender.Male),
+            };
+            Zoo zoo = new Zoo();
+            AnimalFabric animalFabric = new AnimalFabric();
+
+            for (int i = 0; i < allAnimals.Count; i++)
+            {
+                List<Animal> animals = animalFabric.CreateAnimals(animalsQuantity, allAnimals[i]);
+
+                zoo.AddAnimals(animals);
+            }
+
+            ActionBuilder actionBuilder = new ActionBuilder(zoo);
+            Menu menu = new Menu(actionBuilder.GetActions());
+
+            Console.CursorVisible = false;
+
+            menu.Work();
         }
     }
 
     class Zoo
     {
-        private List<Aviary> _aviaries;
-        private List<string> _animalsName;
+        private List<Aviary> _aviaries = new List<Aviary>();
 
-        public void AddAnimal()
+        public void AddAnimals(List<Animal> animals) =>
+            animals.ForEach(animal => AddAnimal(animal));
+
+        public List<Action> GetAviariesWriteInfoActions()
         {
-            //закончил здесь
+            if (_aviaries == null)
+                return new List<Action>();
+
+            List<Action> actions = new List<Action>();
+
+            _aviaries.ForEach(aviary => actions.Add(aviary.WriteInfo));
+
+            return actions;
+        }
+
+        private void AddAnimal(Animal animal)
+        {
+            Aviary aviary = _aviaries.FirstOrDefault(requiredAviary => requiredAviary.IsAnimalSuitable(animal));
+
+            if (aviary == null)
+            {
+                aviary = new Aviary();
+
+                _aviaries.Add(aviary);
+            }
+
+            aviary.AddAnimal(animal);
         }
     }
 
     class Aviary
     {
-        private List<Animal> _animals;
+        private List<Animal> _animals = new List<Animal>();
 
-        private string _animalName;
-        private string _animalSound;
-        private string _maleSex;
-        private string _femaleSex;
+        private bool IsSomeoneIn => _animals.Count > 0;
 
-        public Aviary(string animalName, string animalSound, string maleSex, string femaleSex)
-        {
-            _animalName = animalName;
-            _animalSound = animalSound;
-            _maleSex = maleSex;
-            _femaleSex = femaleSex;
-        }
-
-        public void AddAnimal(Animal animal)
-        {
-            if (animal.Name != _animalName)
-                return;
-
+        public void AddAnimal(Animal animal) =>
             _animals.Add(animal);
-        }
+
+        public bool IsAnimalSuitable(Animal animal) =>
+            IsSomeoneIn == false || _animals.First().Name == animal.Name;
 
         public void WriteInfo()
         {
-            int maleAnimalValue = _animals.Count(animal => animal.Sex == _maleSex);
-            int femaleAnimalValue = _animals.Count(animal => animal.Sex == _femaleSex);
+            if (IsSomeoneIn == false)
+            {
+                Console.WriteLine("Вольер пуст.");
+
+                return;
+            }
+
+            int maleAnimalValue = _animals.Count(animal => animal.Gender == Gender.Male);
+            int femaleAnimalValue = _animals.Count(animal => animal.Gender == Gender.Female);
+
+            string animalName = _animals.First().Name;
+            string animalSound = _animals.First().Sound;
 
             Console.Clear();
 
-            Console.WriteLine($"В этом вольере живет {_animalName}.\n" +
+            Console.WriteLine($"В этом вольере живет {animalName}.\n" +
                 $"Количество самцов в вольере - {maleAnimalValue}.\n" +
                 $"Количество самок в вольере - {femaleAnimalValue}.\n" +
-                $"{_animalName} издает звук {_animalSound}.");
+                $"{animalName} издает звук: \"{animalSound}\".\n" +
+                $"Нажмите любую клавишу чтобы вернутся.");
 
             Console.ReadKey(true);
+
+            Console.Clear();
         }
     }
 
-    class Animal
+    abstract class Animal
     {
-        public Animal(string name, string sex, string animalSound)
+        protected Animal(Gender gender) =>
+            Gender = gender;
+
+        public string Name { get; protected set; }
+        public Gender Gender { get; protected set; }
+        public string Sound { get; protected set; }
+    }
+
+    class AnimalFabric
+    {
+        private Random _random = new Random();
+
+        public List<Animal> CreateAnimals(int quantity, Animal animal)
         {
-            Name = name;
-            Sex = sex;
-            AnimalSound = animalSound;
+            List<Animal> animals = new List<Animal>();
+
+            Gender[] genders = Enum.GetValues(typeof(Gender)).Cast<Gender>().ToArray();
+
+            for (int i = 0; i < quantity; i++)
+            {
+                int index = _random.Next(genders.Length);
+
+                Gender gender = genders[index];
+
+                animals.Add(Create(animal, gender));
+            }
+
+            return animals;
         }
 
-        public string Name { get; private set; }
-        public string Sex { get; private set; }
-        public string AnimalSound { get; private set; }
+        private Animal Create(Animal animal, Gender gender)
+        {
+            switch (animal)
+            {
+                case Tiger _:
+                    return new Tiger(gender);
+
+                case Hedgehog _:
+                    return new Hedgehog(gender);
+
+                case Giraffe _:
+                    return new Giraffe(gender);
+
+                case Titmouse _:
+                    return new Titmouse(gender);
+
+                default:
+                    return null;
+            }
+        }
+    }
+
+    class Tiger : Animal
+    {
+        public Tiger(Gender gender) : base(gender)
+        {
+            Name = "Тигр";
+            Sound = "Я тигр. Ррррр...";
+        }
+    }
+
+    class Hedgehog : Animal
+    {
+        public Hedgehog(Gender gender) : base(gender)
+        {
+            Name = "Ежик";
+            Sound = "Do you know the way?";
+        }
+    }
+
+    class Giraffe : Animal
+    {
+        public Giraffe(Gender gender) : base(gender)
+        {
+            Name = "Жираф";
+            Sound = "Хрум-хрум...";
+        }
+    }
+
+    class Titmouse : Animal
+    {
+        public Titmouse(Gender gender) : base(gender)
+        {
+            Name = "Синица";
+            Sound = "Чик-чирик, мазафака.";
+        }
     }
 
     class Menu
@@ -193,15 +308,24 @@ namespace Zoo
 
         public Dictionary<string, Action> GetActions()
         {
-            string[] actionDescriptions;
-            Action[] actionsArray;
+            List<Action> writeInfoActions = _zoo.GetAviariesWriteInfoActions();
 
-            Dictionary<string, Action> actions = new Dictionary<string, Action>
+            Dictionary<string, Action> actions = new Dictionary<string, Action>();
+
+            for (int i = 0; i < writeInfoActions.Count; i++)
             {
+                int aviaryCount = i + 1;
 
-            };
+                actions.Add($"Подойти к {aviaryCount} вольеру.", writeInfoActions[i]);
+            }
 
             return actions;
         }
+    }
+
+    enum Gender
+    {
+        Male,
+        Female
     }
 }
