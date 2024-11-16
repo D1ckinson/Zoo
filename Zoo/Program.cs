@@ -8,21 +8,38 @@ namespace Zoo
     {
         static void Main()
         {
-            Zoo zoo = new Zoo();
+            ZooFactory zooFactory = new ZooFactory();
+            Zoo zoo = zooFactory.Create();
 
             zoo.Work();
+        }
+    }
+
+    class ZooFactory
+    {
+        private AviaryFactory _aviaryFactory = new AviaryFactory();
+
+        public Zoo Create()
+        {
+            List<Aviary> aviaries = new List<Aviary>();
+
+            foreach (string name in _aviaryFactory.Names)
+            {
+                Aviary aviary = _aviaryFactory.Create(name);
+                aviaries.Add(aviary);
+            }
+
+            return new Zoo(aviaries);
         }
     }
 
     class Zoo
     {
         private List<Aviary> _aviaries = new List<Aviary>();
-        private List<Animal> _animals;
 
-        public Zoo()
+        public Zoo(List<Aviary> aviaries)
         {
-            _animals = FillAnimals();
-            _aviaries = FillAviaries();
+            _aviaries = aviaries;
         }
 
         public void Work()
@@ -40,7 +57,7 @@ namespace Zoo
                 int exitNumber = _aviaries.Count + 1;
                 Console.WriteLine($"{exitNumber} - выход");
 
-                int input = ReadInt();
+                int input = UserUtils.ReadInt("Введите команду: ");
                 int index = input - 1;
 
                 if (input == exitNumber)
@@ -48,7 +65,7 @@ namespace Zoo
                     isWork = false;
                 }
 
-                if (IsIndexInRange(index))
+                if (UserUtils.IsIndexInRange(index, _aviaries.Count))
                 {
                     _aviaries[index].WriteInfo();
                 }
@@ -56,117 +73,32 @@ namespace Zoo
                 Console.Clear();
             }
         }
+    }
 
-        private int ReadInt()
-        {
-            int number;
+    class AviaryFactory
+    {
+        private AnimalFactory _animalFactory = new AnimalFactory();
 
-            while (int.TryParse(ReadString(), out number) == false)
-                Console.WriteLine("Некорректный ввод. Введите число.");
+        public List<string> Names => _animalFactory.Names;
 
-            return number;
-        }
-
-        private bool IsIndexInRange(int index)
-        {
-            if (index < 0 || index >= _aviaries.Count)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        private List<Aviary> FillAviaries()
-        {
-            Random random = new Random();
-            List<Aviary> aviaries = new List<Aviary>();
-
-            int minAnimalQuantity = 2;
-            int maxAnimalQuantity = 5;
-
-            foreach (Animal animal in _animals)
-            {
-                Aviary aviary = FindAviary(animal);
-                int animalQuantity = random.Next(minAnimalQuantity, maxAnimalQuantity + 1);
-
-                for (int i = 0; i < animalQuantity; i++)
-                {
-                    aviary.AddAnimal(animal.Clone());
-                }
-
-                aviaries.Add(aviary);
-            }
-
-            return aviaries;
-        }
-
-        private Aviary FindAviary(Animal animal)
-        {
-            //Aviary aviary = _aviaries.FirstOrDefault(matchedAviary => matchedAviary.AnimalName == animal.Name);
-
-            foreach (Aviary aviary1 in _aviaries)
-            {
-                if (aviary1.Name == animal.Name)
-                {
-                    return aviary1;
-                }
-            }
-
-            return new Aviary(animal.Name);
-
-            //if (aviary == null)
-            //{
-            //    return new Aviary();
-            //}
-
-            //return aviary;
-        }
-
-        private List<Animal> FillAnimals()
-        {
-            List<Animal> animals = new List<Animal>();
-
-            foreach (Gender gender in Enum.GetValues(typeof(Gender)))
-            {
-                animals.Add(new Tiger("Тигр", "Я тигр. Ррррр...", gender));
-                animals.Add(new Hedgehog("Ежик", "Do you know the way?", gender));
-                animals.Add(new Giraffe("Жираф", "Хрум-хрум...", gender));
-                animals.Add(new Titmouse("Синица", "Чик-чирик, мазафака.", gender));
-            }
-
-            return animals;
-        }
-
-        private string ReadString()
-        {
-            Console.Write("Введите команду: ");
-
-            return Console.ReadLine();
-        }
+        public Aviary Create(string name) =>
+            new Aviary(_animalFactory.Create(name));
     }
 
     class Aviary
     {
-        private List<Animal> _animals = new List<Animal>();
+        private List<Animal> _animals;
 
-        public Aviary(string name)
+        public Aviary(List<Animal> animals)
         {
-            Name = name;
+            _animals = animals;
         }
-
-        public string Name { get; }
-
-        public string AnimalName => _animals.First().Name;
-
-        public void AddAnimal(Animal animal) =>
-            _animals.Add(animal);
 
         public void WriteInfo()
         {
             int maleAnimalValue = _animals.Count(animal => animal.Gender == Gender.Male);
             int femaleAnimalValue = _animals.Count - maleAnimalValue;
-            Console.WriteLine($"{_animals.Count}  {maleAnimalValue}  {femaleAnimalValue}\n\n\n");
+
             Animal tempAnimal = _animals.First();
             string animalName = tempAnimal.Name;
             string animalSound = tempAnimal.Sound;
@@ -183,9 +115,49 @@ namespace Zoo
         }
     }
 
-    abstract class Animal
+    class AnimalFactory
     {
-        protected Animal(string name, string sound, Gender gender)
+        private Dictionary<string, string> _animals;
+
+        public AnimalFactory()
+        {
+            _animals = FillAnimals();
+        }
+
+        public List<string> Names => _animals.Keys.ToList();
+
+        public List<Animal> Create(string name)
+        {
+            List<Animal> animals = new List<Animal>();
+            int animalsQuantity = 10;
+
+            Gender[] genders = (Gender[])Enum.GetValues(typeof(Gender));
+
+            for (int i = 0; i < animalsQuantity; i++)
+            {
+                int index = UserUtils.GenerateRandomValue(genders.Length);
+
+                Gender gender = genders[index];
+                string sound = _animals[name];
+
+                animals.Add(new Animal(name, sound, gender));
+            }
+
+            return animals;
+        }
+
+        private Dictionary<string, string> FillAnimals() =>
+            new Dictionary<string, string>
+            {
+                ["Тигр"] = "Мяу",
+                ["Ежик"] = "Я ежик",
+                ["Жираф"] = "Я жираф"
+            };
+    }
+
+    class Animal
+    {
+        public Animal(string name, string sound, Gender gender)
         {
             Name = name;
             Sound = sound;
@@ -195,45 +167,39 @@ namespace Zoo
         public string Name { get; }
         public string Sound { get; }
         public Gender Gender { get; }
-
-        public abstract Animal Clone();
-    }
-
-    class Tiger : Animal
-    {
-        public Tiger(string name, string sound, Gender gender) : base(name, sound, gender) { }
-
-        public override Animal Clone() =>
-            new Tiger(Name, Sound, Gender);
-    }
-
-    class Hedgehog : Animal
-    {
-        public Hedgehog(string name, string sound, Gender gender) : base(name, sound, gender) { }
-
-        public override Animal Clone() =>
-            new Hedgehog(Name, Sound, Gender);
-    }
-
-    class Giraffe : Animal
-    {
-        public Giraffe(string name, string sound, Gender gender) : base(name, sound, gender) { }
-
-        public override Animal Clone() =>
-            new Giraffe(Name, Sound, Gender);
-    }
-
-    class Titmouse : Animal
-    {
-        public Titmouse(string name, string sound, Gender gender) : base(name, sound, gender) { }
-
-        public override Animal Clone() =>
-            new Titmouse(Name, Sound, Gender);
     }
 
     enum Gender
     {
         Male,
         Female
+    }
+
+    static class UserUtils
+    {
+        private static Random s_random = new Random();
+
+        public static int ReadInt(string text)
+        {
+            int number;
+
+            while (int.TryParse(ReadString(text), out number) == false)
+                Console.WriteLine("Некорректный ввод. Введите число.");
+
+            return number;
+        }
+
+        public static string ReadString(string text)
+        {
+            Console.Write(text);
+
+            return Console.ReadLine();
+        }
+
+        public static int GenerateRandomValue(int max) =>
+            s_random.Next(max);
+
+        public static bool IsIndexInRange(int index, int maxIndex) =>
+            (index < 0 || index >= maxIndex) == false;
     }
 }
