@@ -8,65 +8,141 @@ namespace Zoo
     {
         static void Main()
         {
-            int animalsQuantity = 5;
-
-            List<Animal> allAnimals = new List<Animal>()
-            {
-                new Tiger(Gender.Male),
-                new Hedgehog(Gender.Male),
-                new Giraffe (Gender.Male),
-                new Titmouse(Gender.Male),
-            };
             Zoo zoo = new Zoo();
-            AnimalFabric animalFabric = new AnimalFabric();
 
-            for (int i = 0; i < allAnimals.Count; i++)
-            {
-                List<Animal> animals = animalFabric.CreateAnimals(animalsQuantity, allAnimals[i]);
-
-                zoo.AddAnimals(animals);
-            }
-
-            ActionBuilder actionBuilder = new ActionBuilder(zoo);
-            Menu menu = new Menu(actionBuilder.GetActions());
-
-            Console.CursorVisible = false;
-
-            menu.Work();
+            zoo.Work();
         }
     }
 
     class Zoo
     {
         private List<Aviary> _aviaries = new List<Aviary>();
+        private List<Animal> _animals;
 
-        public void AddAnimals(List<Animal> animals) =>
-            animals.ForEach(animal => AddAnimal(animal));
-
-        public List<Action> GetAviariesWriteInfoActions()
+        public Zoo()
         {
-            if (_aviaries == null)
-                return new List<Action>();
-
-            List<Action> actions = new List<Action>();
-
-            _aviaries.ForEach(aviary => actions.Add(aviary.WriteInfo));
-
-            return actions;
+            _animals = FillAnimals();
+            _aviaries = FillAviaries();
         }
 
-        private void AddAnimal(Animal animal)
+        public void Work()
         {
-            Aviary aviary = _aviaries.FirstOrDefault(requiredAviary => requiredAviary.IsAnimalSuitable(animal));
+            bool isWork = true;
 
-            if (aviary == null)
+            while (isWork)
             {
-                aviary = new Aviary();
+                for (int i = 0; i < _aviaries.Count; i++)
+                {
+                    int aviaryNumber = i + 1;
+                    Console.WriteLine($"{aviaryNumber} - подойти к {aviaryNumber} вольеру");
+                }
 
-                _aviaries.Add(aviary);
+                int exitNumber = _aviaries.Count + 1;
+                Console.WriteLine($"{exitNumber} - выход");
+
+                int input = ReadInt();
+                int index = input - 1;
+
+                if (input == exitNumber)
+                {
+                    isWork = false;
+                }
+
+                if (IsIndexInRange(index))
+                {
+                    _aviaries[index].WriteInfo();
+                }
+
+                Console.Clear();
+            }
+        }
+
+        private int ReadInt()
+        {
+            int number;
+
+            while (int.TryParse(ReadString(), out number) == false)
+                Console.WriteLine("Некорректный ввод. Введите число.");
+
+            return number;
+        }
+
+        private bool IsIndexInRange(int index)
+        {
+            if (index < 0 || index >= _aviaries.Count)
+            {
+                return false;
             }
 
-            aviary.AddAnimal(animal);
+            return true;
+        }
+
+        private List<Aviary> FillAviaries()
+        {
+            Random random = new Random();
+            List<Aviary> aviaries = new List<Aviary>();
+
+            int minAnimalQuantity = 2;
+            int maxAnimalQuantity = 5;
+
+            foreach (Animal animal in _animals)
+            {
+                Aviary aviary = FindAviary(animal);
+                int animalQuantity = random.Next(minAnimalQuantity, maxAnimalQuantity + 1);
+
+                for (int i = 0; i < animalQuantity; i++)
+                {
+                    aviary.AddAnimal(animal.Clone());
+                }
+
+                aviaries.Add(aviary);
+            }
+
+            return aviaries;
+        }
+
+        private Aviary FindAviary(Animal animal)
+        {
+            //Aviary aviary = _aviaries.FirstOrDefault(matchedAviary => matchedAviary.AnimalName == animal.Name);
+
+            foreach (Aviary aviary1 in _aviaries)
+            {
+                if (aviary1.Name == animal.Name)
+                {
+                    return aviary1;
+                }
+            }
+
+            return new Aviary(animal.Name);
+
+            //if (aviary == null)
+            //{
+            //    return new Aviary();
+            //}
+
+            //return aviary;
+        }
+
+        private List<Animal> FillAnimals()
+        {
+            List<Animal> animals = new List<Animal>();
+
+            foreach (Gender gender in Enum.GetValues(typeof(Gender)))
+            {
+                animals.Add(new Tiger("Тигр", "Я тигр. Ррррр...", gender));
+                animals.Add(new Hedgehog("Ежик", "Do you know the way?", gender));
+                animals.Add(new Giraffe("Жираф", "Хрум-хрум...", gender));
+                animals.Add(new Titmouse("Синица", "Чик-чирик, мазафака.", gender));
+            }
+
+            return animals;
+        }
+
+        private string ReadString()
+        {
+            Console.Write("Введите команду: ");
+
+            return Console.ReadLine();
         }
     }
 
@@ -74,31 +150,28 @@ namespace Zoo
     {
         private List<Animal> _animals = new List<Animal>();
 
-        private bool IsSomeoneIn => _animals.Count > 0;
+        public Aviary(string name)
+        {
+            Name = name;
+        }
+
+        public string Name { get; }
+
+        public string AnimalName => _animals.First().Name;
 
         public void AddAnimal(Animal animal) =>
             _animals.Add(animal);
 
-        public bool IsAnimalSuitable(Animal animal) =>
-            IsSomeoneIn == false || _animals.First().Name == animal.Name;
-
         public void WriteInfo()
         {
-            if (IsSomeoneIn == false)
-            {
-                Console.WriteLine("Вольер пуст.");
-
-                return;
-            }
-
             int maleAnimalValue = _animals.Count(animal => animal.Gender == Gender.Male);
-            int femaleAnimalValue = _animals.Count(animal => animal.Gender == Gender.Female);
-
-            string animalName = _animals.First().Name;
-            string animalSound = _animals.First().Sound;
+            int femaleAnimalValue = _animals.Count - maleAnimalValue;
+            Console.WriteLine($"{_animals.Count}  {maleAnimalValue}  {femaleAnimalValue}\n\n\n");
+            Animal tempAnimal = _animals.First();
+            string animalName = tempAnimal.Name;
+            string animalSound = tempAnimal.Sound;
 
             Console.Clear();
-
             Console.WriteLine($"В этом вольере живет {animalName}.\n" +
                 $"Количество самцов в вольере - {maleAnimalValue}.\n" +
                 $"Количество самок в вольере - {femaleAnimalValue}.\n" +
@@ -106,221 +179,56 @@ namespace Zoo
                 $"Нажмите любую клавишу чтобы вернутся.");
 
             Console.ReadKey(true);
-
             Console.Clear();
         }
     }
 
     abstract class Animal
     {
-        protected Animal(Gender gender) =>
+        protected Animal(string name, string sound, Gender gender)
+        {
+            Name = name;
+            Sound = sound;
             Gender = gender;
-
-        public string Name { get; protected set; }
-        public Gender Gender { get; protected set; }
-        public string Sound { get; protected set; }
-    }
-
-    class AnimalFabric
-    {
-        private Random _random = new Random();
-
-        public List<Animal> CreateAnimals(int quantity, Animal animal)
-        {
-            List<Animal> animals = new List<Animal>();
-
-            Gender[] genders = Enum.GetValues(typeof(Gender)).Cast<Gender>().ToArray();
-
-            for (int i = 0; i < quantity; i++)
-            {
-                int index = _random.Next(genders.Length);
-
-                Gender gender = genders[index];
-
-                animals.Add(Create(animal, gender));
-            }
-
-            return animals;
         }
 
-        private Animal Create(Animal animal, Gender gender)
-        {
-            switch (animal)
-            {
-                case Tiger _:
-                    return new Tiger(gender);
+        public string Name { get; }
+        public string Sound { get; }
+        public Gender Gender { get; }
 
-                case Hedgehog _:
-                    return new Hedgehog(gender);
-
-                case Giraffe _:
-                    return new Giraffe(gender);
-
-                case Titmouse _:
-                    return new Titmouse(gender);
-
-                default:
-                    return null;
-            }
-        }
+        public abstract Animal Clone();
     }
 
     class Tiger : Animal
     {
-        public Tiger(Gender gender) : base(gender)
-        {
-            Name = "Тигр";
-            Sound = "Я тигр. Ррррр...";
-        }
+        public Tiger(string name, string sound, Gender gender) : base(name, sound, gender) { }
+
+        public override Animal Clone() =>
+            new Tiger(Name, Sound, Gender);
     }
 
     class Hedgehog : Animal
     {
-        public Hedgehog(Gender gender) : base(gender)
-        {
-            Name = "Ежик";
-            Sound = "Do you know the way?";
-        }
+        public Hedgehog(string name, string sound, Gender gender) : base(name, sound, gender) { }
+
+        public override Animal Clone() =>
+            new Hedgehog(Name, Sound, Gender);
     }
 
     class Giraffe : Animal
     {
-        public Giraffe(Gender gender) : base(gender)
-        {
-            Name = "Жираф";
-            Sound = "Хрум-хрум...";
-        }
+        public Giraffe(string name, string sound, Gender gender) : base(name, sound, gender) { }
+
+        public override Animal Clone() =>
+            new Giraffe(Name, Sound, Gender);
     }
 
     class Titmouse : Animal
     {
-        public Titmouse(Gender gender) : base(gender)
-        {
-            Name = "Синица";
-            Sound = "Чик-чирик, мазафака.";
-        }
-    }
+        public Titmouse(string name, string sound, Gender gender) : base(name, sound, gender) { }
 
-    class Menu
-    {
-        private const ConsoleKey MoveSelectionUp = ConsoleKey.UpArrow;
-        private const ConsoleKey MoveSelectionDown = ConsoleKey.DownArrow;
-        private const ConsoleKey ConfirmSelection = ConsoleKey.Enter;
-
-        private ConsoleColor _backgroundColor = ConsoleColor.White;
-        private ConsoleColor _foregroundColor = ConsoleColor.Black;
-
-        private int _itemIndex = 0;
-        private bool _isRunning;
-        private string[] _items;
-
-        private Dictionary<string, Action> _actions = new Dictionary<string, Action>();
-
-        public Menu(Dictionary<string, Action> actions)
-        {
-            _actions = actions;
-            _actions.Add("Выход", Exit);
-            _items = _actions.Keys.ToArray();
-        }
-
-        private int ItemIndex
-        {
-            get
-            {
-                return _itemIndex;
-            }
-
-            set
-            {
-                int lastIndex = _items.Length - 1;
-
-                if (value > lastIndex)
-                    value = lastIndex;
-
-                if (value < 0)
-                    value = 0;
-
-                _itemIndex = value;
-            }
-        }
-
-        public void Work()
-        {
-            _isRunning = true;
-
-            while (_isRunning)
-            {
-                DrawMenu();
-
-                ReadKey();
-            }
-        }
-
-        private void ReadKey()
-        {
-            switch (Console.ReadKey(true).Key)
-            {
-                case MoveSelectionDown:
-                    ItemIndex++;
-                    break;
-
-                case MoveSelectionUp:
-                    ItemIndex--;
-                    break;
-
-                case ConfirmSelection:
-                    _actions[_items[_itemIndex]].Invoke();
-                    break;
-            }
-        }
-
-        public void DrawMenu()
-        {
-            Console.SetCursorPosition(0, 0);
-
-            for (int i = 0; i < _items.Length; i++)
-                if (i == ItemIndex)
-                    WriteColoredText(_items[i]);
-                else
-                    Console.WriteLine(_items[i]);
-        }
-
-        private void WriteColoredText(string text)
-        {
-            Console.ForegroundColor = _foregroundColor;
-            Console.BackgroundColor = _backgroundColor;
-
-            Console.WriteLine(text);
-
-            Console.ResetColor();
-        }
-
-        private void Exit() =>
-            _isRunning = false;
-    }
-
-    class ActionBuilder
-    {
-        private Zoo _zoo;
-
-        public ActionBuilder(Zoo zoo) =>
-            _zoo = zoo;
-
-        public Dictionary<string, Action> GetActions()
-        {
-            List<Action> writeInfoActions = _zoo.GetAviariesWriteInfoActions();
-
-            Dictionary<string, Action> actions = new Dictionary<string, Action>();
-
-            for (int i = 0; i < writeInfoActions.Count; i++)
-            {
-                int aviaryCount = i + 1;
-
-                actions.Add($"Подойти к {aviaryCount} вольеру.", writeInfoActions[i]);
-            }
-
-            return actions;
-        }
+        public override Animal Clone() =>
+            new Titmouse(Name, Sound, Gender);
     }
 
     enum Gender
